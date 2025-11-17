@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GOT EGGS? - Juego de las Casas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=MedievalSharp&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Pantalla de Menú -->
+    <div id="menu-screen">
+      <div class="menu-overlay"></div>
+      <div class="menu-content">
+        <div class="title-container">
+          <h1 class="menu-title">GOT EGGS?</h1>
+          <div class="title-decoration"></div>
+        </div>
+        <p class="menu-subtitle">⚔️ Elige tu Casa ⚔️</p>
+        <div class="house-logos-container">
+          <div class="house-card" data-house="stark">
+            <img
+              src="img/house_stark.png"
+              alt="Casa Stark"
+              class="house-logo"
+            />
+            <div class="house-name">Casa Stark</div>
+            <div class="house-motto">"El Invierno se Acerca"</div>
+          </div>
+          <div class="house-card" data-house="lannister">
+            <img
+              src="img/lannister_house.png"
+              alt="Casa Lannister"
+              class="house-logo"
+            />
+            <div class="house-name">Casa Lannister</div>
+            <div class="house-motto">"Oye mi Rugido"</div>
+          </div>
+        </div>
+        <div class="menu-footer">Presiona ↑ ↓ ← → para moverte</div>
+      </div>
+    </div>
+
+    <!-- Pantalla de Juego -->
+    <div id="game-screen">
+      <!-- Barra de estado -->
+      <div id="stats-bar">
+        <div class="stat-container">
+          <div class="stat-item gold-stat">
+            <span class="stat-icon">💰</span>
+            <div class="stat-info">
+              <span class="stat-label">Oro</span>
+              <span class="stat-value" id="gold-value">50</span>
+            </div>
+          </div>
+          <div class="stat-item loyalty-stat">
+            <span class="stat-icon">👑</span>
+            <div class="stat-info">
+              <span class="stat-label">Lealtad</span>
+              <span class="stat-value" id="loyalty-value">20</span>
+            </div>
+          </div>
+        </div>
+        <div class="game-title">🐉 GOT EGGS? 🐉</div>
+      </div>
+
+      <!-- Minimapa -->
+      <div id="minimap">
+        <div class="minimap-location" data-location="castle">Castle</div>
+        <div class="minimap-location" data-location="city">City</div>
+        <div class="minimap-location" data-location="woods">Woods</div>
+      </div>
+
+      <!-- Personaje -->
+      <img src="img/eddard.png" alt="Eddard Stark" id="character-sprite" />
+
+      <!-- NPC Aldeano -->
+      <img
+        src="img/aldeano_pie1.png"
+        alt="Aldeano"
+        id="npc-aldeano"
+        style="display: none"
+      />
+
+      <!-- Sistema de Diálogos -->
+      <div id="dialog-container" style="display: none">
+        <div class="dialog-box">
+          <div class="dialog-header">
+            <span class="dialog-speaker" id="dialog-speaker">Aldeano</span>
+            <button class="dialog-close" id="dialog-close">✕</button>
+          </div>
+          <div class="dialog-content">
+            <p id="dialog-text"></p>
+          </div>
+          <div class="dialog-buttons" id="dialog-buttons"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pantalla de Créditos -->
+    <div id="credits-screen" style="display: none">
+      <div class="credits-overlay"></div>
+      <div class="credits-content">
+        <h1 class="credits-title">🎮 CRÉDITOS 🎮</h1>
+
+        <div class="credits-section">
+          <h2 class="credits-subtitle">Desarrolladores</h2>
+          <p class="credits-name">Felix Toledo</p>
+          <p class="credits-name">Martin Carbajal</p>
+          <p class="credits-name">Santiago Borda</p>
+        </div>
+
+        <div class="credits-divider">✦ ✦ ✦</div>
+
+        <div class="credits-section">
+          <h2 class="credits-subtitle">Materia</h2>
+          <p class="credits-text">Diseño y desarrollo de videojuegos</p>
+        </div>
+
+        <div class="credits-section">
+          <h2 class="credits-subtitle">Profesora</h2>
+          <p class="credits-text">Verónica Seniquel</p>
+        </div>
+
+        <div class="credits-section">
+          <h2 class="credits-subtitle">Año</h2>
+          <p class="credits-text">2025</p>
+        </div>
+
+        <div class="credits-thanks">gracias :)</div>
+
+        <div class="credits-footer">
+          Presiona cualquier tecla para volver al menú
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
