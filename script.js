@@ -12,6 +12,9 @@ const dialogClose = document.getElementById("dialog-close");
 const goldValue = document.getElementById("gold-value");
 const loyaltyValue = document.getElementById("loyalty-value");
 const creditsScreen = document.getElementById("credits-screen");
+const menuTheme = document.getElementById("menu-theme");
+const gameTheme = document.getElementById("game-theme");
+const creditsTheme = document.getElementById("credits-theme");
 
 // Variables para el movimiento del personaje
 let characterX = window.innerWidth / 2; // Posición inicial en el centro
@@ -44,9 +47,12 @@ const scenes = {
 
 // Variables para la animación de caminar
 let walkAnimationFrame = 0;
-const idleImage = "img/eddard.png"; // Imagen cuando está quieto
-const walkImages = ["img/eddard_pie1.png", "img/eddard_pie2.png"]; // Imágenes para caminar
+let idleImage = "img/eddard.png"; // Imagen cuando está quieto (por defecto Stark)
+let walkImages = ["img/eddard_pie1.png", "img/eddard_pie2.png"]; // Imágenes para caminar (por defecto Stark)
 let animationInterval = null;
+
+// Variable para almacenar la casa seleccionada
+let selectedHouse = "stark"; // Por defecto Stark
 
 // Variables para la animación del NPC
 let npcAnimationFrame = 0;
@@ -61,9 +67,90 @@ const keys = {
   ArrowRight: false,
 };
 
+// Función para hacer fade in del audio
+function fadeInAudio(audioElement, duration = 2000) {
+  audioElement.volume = 0;
+  audioElement.play().catch((error) => {
+    console.log("Error al reproducir audio:", error);
+  });
+
+  const interval = 50; // Actualizar cada 50ms
+  const steps = duration / interval;
+  const volumeStep = 1 / steps;
+  let currentStep = 0;
+
+  const fadeInterval = setInterval(() => {
+    currentStep++;
+    audioElement.volume = Math.min(volumeStep * currentStep, 1);
+
+    if (currentStep >= steps) {
+      clearInterval(fadeInterval);
+      audioElement.volume = 1;
+    }
+  }, interval);
+}
+
+// Función para hacer fade out del audio
+function fadeOutAudio(audioElement, duration = 500, callback) {
+  // Si el audio no está reproduciéndose, ejecutar callback inmediatamente
+  if (audioElement.paused || audioElement.volume === 0) {
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    audioElement.volume = 1; // Resetear volumen para la próxima vez
+    if (callback) callback();
+    return;
+  }
+
+  const interval = 50;
+  const steps = duration / interval;
+  const initialVolume = audioElement.volume;
+  const volumeStep = initialVolume / steps;
+  let currentStep = 0;
+
+  const fadeInterval = setInterval(() => {
+    currentStep++;
+    audioElement.volume = Math.max(initialVolume - volumeStep * currentStep, 0);
+
+    if (currentStep >= steps) {
+      clearInterval(fadeInterval);
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      audioElement.volume = 1; // Resetear volumen para la próxima vez
+      if (callback) callback();
+    }
+  }, interval);
+}
+
+// Iniciar música del menú al cargar la página
+window.addEventListener("load", () => {
+  fadeInAudio(menuTheme, 2000);
+});
+
+// Función para configurar el personaje según la casa seleccionada
+function setCharacterByHouse(house) {
+  selectedHouse = house;
+
+  if (house === "stark") {
+    idleImage = "img/eddard.png";
+    walkImages = ["img/eddard_pie1.png", "img/eddard_pie2.png"];
+  } else if (house === "lannister") {
+    idleImage = "img/twyin.png";
+    walkImages = ["img/twyin_pie1.png", "img/twyin_pie2.png"];
+  }
+
+  // Actualizar la imagen del personaje inmediatamente
+  characterSprite.src = idleImage;
+  console.log(`Personaje configurado para Casa ${house}: ${idleImage}`);
+}
+
 // Añadir event listeners a cada tarjeta de casa
 houseCards.forEach((card) => {
   card.addEventListener("click", () => {
+    // Detener música del menú con fade out y luego iniciar música del juego
+    fadeOutAudio(menuTheme, 500, () => {
+      fadeInAudio(gameTheme, 2000);
+    });
+
     // Ocultar la pantalla de menú con animación
     menuScreen.style.opacity = "0";
     menuScreen.style.transition = "opacity 0.5s ease";
@@ -75,9 +162,10 @@ houseCards.forEach((card) => {
       // Mostrar la pantalla de juego
       gameScreen.style.display = "block";
 
-      // Opcional: Obtener la casa seleccionada
-      const selectedHouse = card.getAttribute("data-house");
-      console.log(`Casa seleccionada: ${selectedHouse}`);
+      // Obtener la casa seleccionada y configurar el personaje
+      const house = card.getAttribute("data-house");
+      setCharacterByHouse(house);
+      console.log(`Casa seleccionada: ${house}`);
 
       // Inicializar la posición del personaje
       updateCharacterPosition();
@@ -332,6 +420,13 @@ function showCredits() {
   gameState.creditsShown = true;
   creditsScreen.style.display = "flex";
 
+  // Detener música del juego y iniciar música de créditos
+  fadeOutAudio(gameTheme, 500, () => {
+    // Saltar los primeros 5 segundos de silencio
+    creditsTheme.currentTime = 6;
+    fadeInAudio(creditsTheme, 2000);
+  });
+
   // Event listener para volver al menú al presionar cualquier tecla
   const handleKeyPress = (e) => {
     returnToMenu();
@@ -343,11 +438,19 @@ function showCredits() {
 
 // Función para volver al menú principal
 function returnToMenu() {
+  // Detener música de créditos y reiniciar música del menú
+  fadeOutAudio(creditsTheme, 500, () => {
+    fadeInAudio(menuTheme, 2000);
+  });
+
   // Ocultar créditos
   creditsScreen.style.display = "none";
 
   // Ocultar pantalla de juego
   gameScreen.style.display = "none";
+
+  // Detener música del juego si está sonando
+  fadeOutAudio(gameTheme, 500);
 
   // Mostrar menú con animación
   menuScreen.style.display = "flex";
@@ -379,6 +482,9 @@ function returnToMenu() {
   // Reiniciar posición del personaje
   characterX = window.innerWidth / 2;
   characterY = window.innerHeight - 170;
+
+  // Reiniciar personaje a Stark por defecto
+  setCharacterByHouse("stark");
 
   // Actualizar stats
   updateStats();
