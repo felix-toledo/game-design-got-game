@@ -13,8 +13,35 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- Pantalla de Menú -->
-    <div id="menu-screen">
+    <!-- Pantalla de Menú Principal -->
+    <div id="main-menu-screen">
+      <div class="menu-overlay"></div>
+      <div class="menu-content">
+        <div class="title-container">
+          <h1 class="menu-title">GOT EGGS?</h1>
+          <div class="title-decoration"></div>
+        </div>
+        <div class="main-menu-buttons">
+          <button class="main-menu-button" id="btn-start">
+            1. Empezar Juego
+          </button>
+          <button class="main-menu-button" id="btn-resume">
+            2. Reanudar Juego
+          </button>
+          <button class="main-menu-button" id="btn-config">
+            3. Configuración
+          </button>
+          <button class="main-menu-button" id="btn-credits">4. Créditos</button>
+          <button class="main-menu-button" id="btn-exit">5. Salir</button>
+        </div>
+        <div class="menu-footer">
+          Presiona 1-5 para seleccionar o usa el mouse
+        </div>
+      </div>
+    </div>
+
+    <!-- Pantalla de Menú de Selección de Casas -->
+    <div id="menu-screen" style="display: none">
       <div class="menu-overlay"></div>
       <div class="menu-content">
         <div class="title-container">
@@ -46,6 +73,40 @@
       </div>
     </div>
 
+    <!-- Pantalla de Configuración -->
+    <div id="config-screen" style="display: none">
+      <div class="menu-overlay"></div>
+      <div class="config-content">
+        <div class="title-container">
+          <h1 class="menu-title">CONFIGURACIÓN</h1>
+          <div class="title-decoration"></div>
+        </div>
+        <div class="config-options">
+          <div class="config-item">
+            <label class="config-label">Sonido</label>
+            <div class="config-control">
+              <button class="config-toggle" id="toggle-sound">Activar</button>
+            </div>
+          </div>
+          <div class="config-item">
+            <label class="config-label">Zoom del Navegador</label>
+            <div class="config-control">
+              <input
+                type="range"
+                id="zoom-slider"
+                min="50"
+                max="150"
+                value="100"
+                class="zoom-slider"
+              />
+              <span class="zoom-value" id="zoom-value">100%</span>
+            </div>
+          </div>
+        </div>
+        <button class="main-menu-button" id="btn-back">Volver al Menú</button>
+      </div>
+    </div>
+
     <!-- Pantalla de Juego -->
     <div id="game-screen">
       <!-- Barra de estado -->
@@ -65,6 +126,20 @@
               <span class="stat-value" id="loyalty-value">20</span>
             </div>
           </div>
+          <div class="stat-item supplies-stat">
+            <span class="stat-icon">📦</span>
+            <div class="stat-info">
+              <span class="stat-label">Suministros</span>
+              <span class="stat-value" id="supplies-value">0</span>
+            </div>
+          </div>
+          <div class="stat-item fief-level-stat">
+            <span class="stat-icon">🏰</span>
+            <div class="stat-info">
+              <span class="stat-label">Nivel de Feudo</span>
+              <span class="stat-value" id="fief-level-value">1</span>
+            </div>
+          </div>
         </div>
         <div class="game-title">🐉 GOT EGGS? 🐉</div>
       </div>
@@ -74,6 +149,7 @@
         <div class="minimap-location" data-location="castle">Castle</div>
         <div class="minimap-location" data-location="city">City</div>
         <div class="minimap-location" data-location="woods">Woods</div>
+        <div class="minimap-location" data-location="ruins">Ruins</div>
       </div>
 
       <!-- Personaje -->
@@ -144,7 +220,10 @@
     <audio id="menu-theme" loop>
       <source src="themes/menu_theme.mp3" type="audio/mpeg" />
     </audio>
-    <audio id="game-theme" loop>
+    <audio id="castle-theme" loop>
+      <source src="themes/castle_theme.mp3" type="audio/mpeg" />
+    </audio>
+    <audio id="minor-theme" loop>
       <source src="themes/minor_theme.mp3" type="audio/mpeg" />
     </audio>
     <audio id="credits-theme" loop>

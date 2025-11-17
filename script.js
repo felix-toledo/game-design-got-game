@@ -1,5 +1,7 @@
 // Obtener referencias a los elementos del DOM
+const mainMenuScreen = document.getElementById("main-menu-screen");
 const menuScreen = document.getElementById("menu-screen");
+const configScreen = document.getElementById("config-screen");
 const gameScreen = document.getElementById("game-screen");
 const houseCards = document.querySelectorAll(".house-card");
 const characterSprite = document.getElementById("character-sprite");
@@ -11,10 +13,26 @@ const dialogSpeaker = document.getElementById("dialog-speaker");
 const dialogClose = document.getElementById("dialog-close");
 const goldValue = document.getElementById("gold-value");
 const loyaltyValue = document.getElementById("loyalty-value");
+const suppliesValue = document.getElementById("supplies-value");
+const fiefLevelValue = document.getElementById("fief-level-value");
 const creditsScreen = document.getElementById("credits-screen");
 const menuTheme = document.getElementById("menu-theme");
-const gameTheme = document.getElementById("game-theme");
+const castleTheme = document.getElementById("castle-theme");
+const minorTheme = document.getElementById("minor-theme");
 const creditsTheme = document.getElementById("credits-theme");
+
+// Referencias a botones del menú principal
+const btnStart = document.getElementById("btn-start");
+const btnResume = document.getElementById("btn-resume");
+const btnConfig = document.getElementById("btn-config");
+const btnCredits = document.getElementById("btn-credits");
+const btnExit = document.getElementById("btn-exit");
+const btnBack = document.getElementById("btn-back");
+
+// Referencias a controles de configuración
+const toggleSound = document.getElementById("toggle-sound");
+const zoomSlider = document.getElementById("zoom-slider");
+const zoomValueDisplay = document.getElementById("zoom-value");
 
 // Variables para el movimiento del personaje
 let characterX = window.innerWidth / 2; // Posición inicial en el centro
@@ -24,25 +42,126 @@ let movementSpeed = 5;
 
 // Variables del estado del juego
 let gameState = {
-  gold: 50,
-  loyalty: 20,
+  gold: 100, // Aumentado para balance mejor (necesario para alcanzar victoria)
+  loyalty: 30, // Aumentado para balance mejor
+  supplies: 5, // Aumentado de 0 a 5 para balance mejor
+  fiefLevel: 1,
   missions: {
     banditsQuest: {
       offered: false,
       accepted: false,
       completed: false,
-      shouldShowCredits: false,
+    },
+    plagueQuest: {
+      offered: false,
+      accepted: false,
+      completed: false,
+    },
+    borderConflictQuest: {
+      offered: false,
+      accepted: false,
+      completed: false,
+    },
+    finalQuest: {
+      offered: false,
+      accepted: false,
+      completed: false,
     },
   },
   creditsShown: false,
 };
 
+// Variables de configuración
+let config = {
+  soundEnabled: true,
+  zoomLevel: 100,
+};
+
+// Cargar configuración del localStorage
+function loadConfig() {
+  const savedConfig = localStorage.getItem("gameConfig");
+  if (savedConfig) {
+    config = { ...config, ...JSON.parse(savedConfig) };
+    updateConfigUI();
+  }
+}
+
+// Guardar configuración en localStorage
+function saveConfig() {
+  localStorage.setItem("gameConfig", JSON.stringify(config));
+}
+
+// Actualizar UI de configuración
+function updateConfigUI() {
+  toggleSound.textContent = config.soundEnabled ? "Desactivar" : "Activar";
+  toggleSound.classList.toggle("sound-off", !config.soundEnabled);
+  zoomSlider.value = config.zoomLevel;
+  zoomValueDisplay.textContent = config.zoomLevel + "%";
+  
+  // Aplicar zoom (compatible con diferentes navegadores)
+  const zoomValue = config.zoomLevel / 100;
+  if (typeof document.body.style.zoom !== "undefined") {
+    document.body.style.zoom = config.zoomLevel + "%";
+  } else {
+    // Fallback usando transform para navegadores que no soportan zoom
+    document.body.style.transform = `scale(${zoomValue})`;
+    document.body.style.transformOrigin = "top left";
+    document.body.style.width = `${100 / zoomValue}%`;
+    document.body.style.height = `${100 / zoomValue}%`;
+  }
+  
+  // Aplicar configuración de sonido
+  const allAudio = [menuTheme, castleTheme, minorTheme, creditsTheme];
+  allAudio.forEach((audio) => {
+    audio.muted = !config.soundEnabled;
+  });
+}
+
+// Verificar si hay partida guardada
+function hasSaveGame() {
+  return localStorage.getItem("gameState") !== null;
+}
+
+// Cargar estado del juego del localStorage
+function loadGameState() {
+  const savedState = localStorage.getItem("gameState");
+  if (savedState) {
+    const parsed = JSON.parse(savedState);
+    gameState = { ...gameState, ...parsed };
+    return true;
+  }
+  return false;
+}
+
+// Guardar estado del juego en localStorage
+function saveGameState() {
+  const stateToSave = {
+    ...gameState,
+    currentScene: currentScene,
+    characterX: characterX,
+    characterY: characterY,
+    selectedHouse: selectedHouse,
+  };
+  localStorage.setItem("gameState", JSON.stringify(stateToSave));
+  
+  // Actualizar estado del botón de reanudar
+  if (btnResume) {
+    btnResume.style.opacity = "1";
+    btnResume.style.cursor = "pointer";
+    btnResume.disabled = false;
+  }
+}
+
 // Variables para el cambio de escenarios
 let currentScene = "castle"; // Escenario inicial
 const scenes = {
   castle: "img/castle.png",
+  castle_to_city: "img/castle_to_city.png",
   city: "img/city.png",
+  city_to_woods: "img/city_to_woods.png",
   woods: "img/woods.png",
+  woods_to_ruins: "img/woods_to_ruins.png",
+  ruins: "img/ruins.png",
 };
 
 // Variables para la animación de caminar
@@ -121,8 +240,78 @@ function fadeOutAudio(audioElement, duration = 500, callback) {
   }, interval);
 }
 
+// Función para verificar si hay una misión activa
+function isMissionActive() {
+  return (
+    (gameState.missions.banditsQuest.accepted &&
+      !gameState.missions.banditsQuest.completed) ||
+    (gameState.missions.plagueQuest.accepted &&
+      !gameState.missions.plagueQuest.completed) ||
+    (gameState.missions.borderConflictQuest.accepted &&
+      !gameState.missions.borderConflictQuest.completed) ||
+    (gameState.missions.finalQuest.accepted &&
+      !gameState.missions.finalQuest.completed)
+  );
+}
+
+// Función para actualizar la música del juego según el estado de la misión
+function updateGameMusic() {
+  const missionActive = isMissionActive();
+  
+  if (missionActive) {
+    // Si hay misión activa, reproducir minor_theme
+    const minorThemePlaying = !minorTheme.paused && minorTheme.volume > 0;
+    if (minorThemePlaying) {
+      // Ya está sonando minor_theme, no hacer nada
+      return;
+    }
+    // Cambiar de castle_theme a minor_theme (o iniciar minor_theme si castle no está sonando)
+    const castleThemePlaying = !castleTheme.paused && castleTheme.volume > 0;
+    if (castleThemePlaying) {
+      fadeOutAudio(castleTheme, 500, () => {
+        fadeInAudio(minorTheme, 2000);
+      });
+    } else {
+      // Si ninguna está sonando, iniciar minor_theme directamente
+      fadeInAudio(minorTheme, 2000);
+    }
+  } else {
+    // Si no hay misión activa, reproducir castle_theme
+    const castleThemePlaying = !castleTheme.paused && castleTheme.volume > 0;
+    if (castleThemePlaying) {
+      // Ya está sonando castle_theme, no hacer nada
+      return;
+    }
+    // Cambiar de minor_theme a castle_theme (o iniciar castle_theme si minor no está sonando)
+    const minorThemePlaying = !minorTheme.paused && minorTheme.volume > 0;
+    if (minorThemePlaying) {
+      fadeOutAudio(minorTheme, 500, () => {
+        fadeInAudio(castleTheme, 2000);
+      });
+    } else {
+      // Si ninguna está sonando, iniciar castle_theme directamente
+      fadeInAudio(castleTheme, 2000);
+    }
+  }
+}
+
 // Iniciar música del menú al cargar la página
 window.addEventListener("load", () => {
+  loadConfig();
+  updateConfigUI();
+  
+  // Verificar si hay partida guardada (sin cargar el estado)
+  const hasSave = hasSaveGame();
+  if (hasSave) {
+    btnResume.style.opacity = "1";
+    btnResume.style.cursor = "pointer";
+    btnResume.disabled = false;
+  } else {
+    btnResume.style.opacity = "0.5";
+    btnResume.style.cursor = "not-allowed";
+    btnResume.disabled = true;
+  }
+  
   fadeInAudio(menuTheme, 2000);
 });
 
@@ -148,7 +337,8 @@ houseCards.forEach((card) => {
   card.addEventListener("click", () => {
     // Detener música del menú con fade out y luego iniciar música del juego
     fadeOutAudio(menuTheme, 500, () => {
-      fadeInAudio(gameTheme, 2000);
+      // Iniciar música según el estado de la misión (normalmente castle_theme al inicio)
+      updateGameMusic();
     });
 
     // Ocultar la pantalla de menú con animación
@@ -167,11 +357,26 @@ houseCards.forEach((card) => {
       setCharacterByHouse(house);
       console.log(`Casa seleccionada: ${house}`);
 
+      // Aplicar bonos/penalizaciones iniciales según la casa seleccionada
+      if (house === "stark") {
+        modifyLoyalty(5); // +5 Lealtad
+        modifyGold(-5); // -5 Oro
+      } else if (house === "lannister") {
+        modifyLoyalty(-5); // -5 Lealtad
+        modifyGold(5); // +5 Oro
+      }
+
+      // Actualizar estadísticas para mostrar valores iniciales
+      updateStats();
+
       // Inicializar la posición del personaje
       updateCharacterPosition();
 
       // Actualizar el minimapa para mostrar la ubicación inicial
       updateMinimap();
+      
+      // Guardar estado inicial del juego
+      saveGameState();
     }, 500);
   });
 });
@@ -235,8 +440,20 @@ function updateCharacterPosition() {
 // Función para actualizar el minimapa
 function updateMinimap() {
   const minimapLocations = document.querySelectorAll(".minimap-location");
+  // Mapear escenarios de transición a escenarios principales para el minimapa
+  const sceneToMainScene = {
+    castle: "castle",
+    castle_to_city: "city",
+    city: "city",
+    city_to_woods: "woods",
+    woods: "woods",
+    woods_to_ruins: "ruins",
+    ruins: "ruins",
+  };
+  const mainScene = sceneToMainScene[currentScene] || currentScene;
+
   minimapLocations.forEach((location) => {
-    if (location.getAttribute("data-location") === currentScene) {
+    if (location.getAttribute("data-location") === mainScene) {
       location.classList.add("active");
     } else {
       location.classList.remove("active");
@@ -262,16 +479,8 @@ function changeScene(newScene) {
     }, 500);
   }
 
-  // Mostrar créditos cuando volvemos a Castle después de completar la misión
-  if (
-    newScene === "castle" &&
-    gameState.missions.banditsQuest.shouldShowCredits &&
-    !gameState.creditsShown
-  ) {
-    setTimeout(() => {
-      showCredits();
-    }, 1000);
-  }
+  // Los créditos solo se muestran después de completar la misión final
+  // (se maneja en showFinalEvaluation)
 
   console.log(`Escenario cambiado a: ${newScene}`);
 }
@@ -280,6 +489,8 @@ function changeScene(newScene) {
 function updateStats() {
   goldValue.textContent = gameState.gold;
   loyaltyValue.textContent = gameState.loyalty;
+  suppliesValue.textContent = gameState.supplies;
+  fiefLevelValue.textContent = gameState.fiefLevel;
 }
 
 // Función para modificar oro
@@ -291,6 +502,20 @@ function modifyGold(amount) {
 // Función para modificar lealtad
 function modifyLoyalty(amount) {
   gameState.loyalty += amount;
+  updateStats();
+}
+
+// Función para modificar suministros
+function modifySupplies(amount) {
+  gameState.supplies += amount;
+  if (gameState.supplies < 0) gameState.supplies = 0; // No permitir negativos
+  updateStats();
+}
+
+// Función para modificar nivel de feudo
+function modifyFiefLevel(amount) {
+  gameState.fiefLevel += amount;
+  if (gameState.fiefLevel < 1) gameState.fiefLevel = 1; // Mínimo nivel 1
   updateStats();
 }
 
@@ -339,8 +564,33 @@ function stopNPCAnimation() {
 
 // Función para actualizar la visibilidad del NPC según el escenario y el estado de la misión
 function updateNPCVisibility() {
-  // Mostrar aldeano en city solo si la misión no ha sido ofrecida
-  if (currentScene === "city" && !gameState.missions.banditsQuest.offered) {
+  // Si estamos en castle
+  if (currentScene === "castle") {
+    // Cuarta misión: finalQuest (solo si borderConflictQuest está completada y finalQuest no ha sido ofrecida)
+    if (
+      gameState.missions.borderConflictQuest.completed &&
+      !gameState.missions.finalQuest.offered
+    ) {
+      npcAldeano.style.display = "block";
+      startNPCAnimation();
+      // Ofrecer la misión después de un pequeño delay
+      setTimeout(() => {
+        if (
+          currentScene === "castle" &&
+          gameState.missions.borderConflictQuest.completed &&
+          !gameState.missions.finalQuest.offered
+        ) {
+          offerFinalQuest();
+        }
+      }, 1000);
+      return;
+    }
+  }
+  
+  // Si estamos en city
+  if (currentScene === "city") {
+    // Primera misión: banditsQuest (si no ha sido ofrecida)
+    if (!gameState.missions.banditsQuest.offered) {
     npcAldeano.style.display = "block";
     startNPCAnimation();
     // Ofrecer la misión después de un pequeño delay
@@ -349,10 +599,55 @@ function updateNPCVisibility() {
         offerBanditsQuest();
       }
     }, 1000);
-  } else {
+      return;
+    }
+    // Segunda misión: plagueQuest (solo si banditsQuest está completada y plagueQuest no ha sido ofrecida)
+    else if (
+      gameState.missions.banditsQuest.completed &&
+      !gameState.missions.plagueQuest.offered
+    ) {
+      npcAldeano.style.display = "block";
+      startNPCAnimation();
+      // Ofrecer la misión después de un pequeño delay
+      setTimeout(() => {
+        if (
+          currentScene === "city" &&
+          gameState.missions.banditsQuest.completed &&
+          !gameState.missions.plagueQuest.offered
+        ) {
+          offerPlagueQuest();
+        }
+      }, 1000);
+      return;
+    }
+  }
+  
+  // Si estamos en ruins
+  if (currentScene === "ruins") {
+    // Tercera misión: borderConflictQuest (solo si plagueQuest está completada y borderConflictQuest no ha sido ofrecida)
+    if (
+      gameState.missions.plagueQuest.completed &&
+      !gameState.missions.borderConflictQuest.offered
+    ) {
+      npcAldeano.style.display = "block";
+      startNPCAnimation();
+      // Ofrecer la misión después de un pequeño delay
+      setTimeout(() => {
+        if (
+          currentScene === "ruins" &&
+          gameState.missions.plagueQuest.completed &&
+          !gameState.missions.borderConflictQuest.offered
+        ) {
+          offerBorderConflictQuest();
+        }
+      }, 1000);
+      return;
+    }
+  }
+  
+  // Si no hay misión que mostrar, ocultar NPC
     npcAldeano.style.display = "none";
     stopNPCAnimation();
-  }
 }
 
 // Función para ofrecer la misión de los bandidos
@@ -368,6 +663,8 @@ function offerBanditsQuest() {
         class: "primary",
         action: () => {
           gameState.missions.banditsQuest.accepted = true;
+          // Cambiar a minor_theme cuando se acepta la misión
+          updateGameMusic();
           closeDialog();
           showDialog(
             "Aldeano",
@@ -392,7 +689,8 @@ function offerBanditsQuest() {
         action: () => {
           modifyLoyalty(-2);
           gameState.missions.banditsQuest.completed = true;
-          gameState.missions.banditsQuest.shouldShowCredits = true;
+          // Cambiar a castle_theme cuando se completa la misión (aunque sea ignorando)
+          updateGameMusic();
           closeDialog();
           showDialog(
             "Aldeano",
@@ -415,17 +713,461 @@ function offerBanditsQuest() {
   );
 }
 
-// Función para mostrar los créditos
+// Función para ofrecer la misión de la plaga
+function offerPlagueQuest() {
+  gameState.missions.plagueQuest.offered = true;
+
+  showDialog(
+    "Aldeano",
+    "¡Mi señor/a! Una plaga terrible afecta a la población de la ciudad. Las personas caen enfermas día tras día. Necesitamos oro urgente para importar curas de otras tierras antes de que sea demasiado tarde.",
+    [
+      {
+        text: "Aceptar Misión",
+        class: "primary",
+        action: () => {
+          gameState.missions.plagueQuest.accepted = true;
+          // Cambiar a minor_theme cuando se acepta la misión
+          updateGameMusic();
+          closeDialog();
+          // Mostrar inmediatamente las decisiones
+          setTimeout(() => {
+            showPlagueDecision();
+          }, 500);
+        },
+      },
+      {
+        text: "Ignorar",
+        class: "secondary",
+        action: () => {
+          modifyLoyalty(-2);
+          gameState.missions.plagueQuest.completed = true;
+          // Cambiar a castle_theme cuando se completa la misión (aunque sea ignorando)
+          updateGameMusic();
+          closeDialog();
+          showDialog(
+            "Aldeano",
+            "Entiendo... *suspira* Espero que no sea demasiado tarde...",
+            [
+              {
+                text: "Continuar",
+                class: "neutral",
+                action: () => {
+                  closeDialog();
+                  npcAldeano.style.display = "none";
+                  stopNPCAnimation();
+                },
+              },
+            ]
+          );
+        },
+      },
+    ]
+  );
+}
+
+// Función para mostrar la decisión de la plaga
+function showPlagueDecision() {
+  showDialog(
+    "Aldeano",
+    "La situación es crítica, mi señor/a. ¿Qué decidirá hacer?",
+    [
+      {
+        text: "Invertir de Inmediato (-20 Oro)",
+        class: "primary",
+        action: () => {
+          if (gameState.gold >= 20) {
+            modifyGold(-20);
+            modifyLoyalty(18); // Aumentado de 15 a 18
+            modifySupplies(12); // Aumentado de 10 a 12
+            gameState.missions.plagueQuest.completed = true;
+            // Subir el nivel de feudo a 3
+            gameState.fiefLevel = 3;
+            updateStats();
+            // Cambiar a castle_theme cuando se completa la misión
+            updateGameMusic();
+            closeDialog();
+            showDialog(
+              "Narrador",
+              "El pueblo agradece su sacrificio. Las curas llegan a tiempo y la plaga es controlada. Su feudo prospera y alcanza un nuevo nivel.",
+              [
+                {
+                  text: "Continuar",
+                  class: "neutral",
+                  action: () => {
+                    closeDialog();
+                    npcAldeano.style.display = "none";
+                    stopNPCAnimation();
+                  },
+                },
+              ]
+            );
+          } else {
+            closeDialog();
+            showDialog(
+              "Narrador",
+              "No tienes suficiente oro para invertir de inmediato. Necesitas al menos 20 de oro.",
+              [
+                {
+                  text: "Volver",
+                  class: "neutral",
+                  action: () => {
+                    closeDialog();
+                    showPlagueDecision();
+                  },
+                },
+              ]
+            );
+          }
+        },
+      },
+      {
+        text: "No Invertir/Esperar (+0 Oro)",
+        class: "secondary",
+        action: () => {
+          modifyLoyalty(-12); // Reducido de -15 a -12
+          modifySupplies(-3); // Reducido de -5 a -3
+          gameState.missions.plagueQuest.completed = true;
+          // Subir el nivel de feudo a 3 (aunque sea la opción negativa)
+          gameState.fiefLevel = 3;
+          updateStats();
+          // Cambiar a castle_theme cuando se completa la misión
+          updateGameMusic();
+          closeDialog();
+          showDialog(
+            "Narrador",
+            "La enfermedad se expande. La lealtad cae mientras el pueblo sufre las consecuencias de la decisión. A pesar de todo, el feudo crece, pero a un costo alto.",
+            [
+              {
+                text: "Continuar",
+                class: "neutral",
+                action: () => {
+                  closeDialog();
+                  npcAldeano.style.display = "none";
+                  stopNPCAnimation();
+                },
+              },
+            ]
+          );
+        },
+      },
+    ]
+  );
+}
+
+// Función para ofrecer la misión del conflicto fronterizo
+function offerBorderConflictQuest() {
+  gameState.missions.borderConflictQuest.offered = true;
+
+  showDialog(
+    "Aldeano",
+    "¡Mi señor/a! Un feudo vecino se ha apoderado de nuestra fortificación crítica en las ruinas. Esta posición es estratégica para nuestra defensa. Sin ella, estamos expuestos a ataques y perdemos recursos valiosos. Necesitamos tomar una decisión rápida.",
+    [
+      {
+        text: "Aceptar Misión",
+        class: "primary",
+        action: () => {
+          gameState.missions.borderConflictQuest.accepted = true;
+          // Cambiar a minor_theme cuando se acepta la misión
+          updateGameMusic();
+          closeDialog();
+          // Mostrar inmediatamente las decisiones
+          setTimeout(() => {
+            showBorderConflictDecision();
+          }, 500);
+        },
+      },
+      {
+        text: "Ignorar",
+        class: "secondary",
+        action: () => {
+          modifyLoyalty(-2);
+          gameState.missions.borderConflictQuest.completed = true;
+          // Cambiar a castle_theme cuando se completa la misión (aunque sea ignorando)
+          updateGameMusic();
+          closeDialog();
+          showDialog(
+            "Aldeano",
+            "Entiendo... *frunce el ceño* La fortificación seguirá en manos del enemigo entonces...",
+            [
+              {
+                text: "Continuar",
+                class: "neutral",
+                action: () => {
+                  closeDialog();
+                  npcAldeano.style.display = "none";
+                  stopNPCAnimation();
+                },
+              },
+            ]
+          );
+        },
+      },
+    ]
+  );
+}
+
+// Función para mostrar la decisión del conflicto fronterizo
+function showBorderConflictDecision() {
+  showDialog(
+    "Aldeano",
+    "Tenemos dos opciones para recuperar la fortificación. ¿Qué ordena, mi señor/a?",
+    [
+      {
+        text: "Enviar Tropas (Alto Riesgo) (-20 Lealtad)",
+        class: "primary",
+        action: () => {
+          // El costo es -20 Lealtad siempre
+          modifyLoyalty(-20);
+          
+          // Verificar si hay suficiente oro para el éxito
+          if (gameState.gold >= 40) {
+            // Éxito: Las tropas están bien equipadas
+            modifySupplies(25); // Aumentado de 20 a 25
+            gameState.missions.borderConflictQuest.completed = true;
+            // Subir el nivel de feudo a 4
+            gameState.fiefLevel = 4;
+            updateStats();
+            // Cambiar a castle_theme cuando se completa la misión
+            updateGameMusic();
+            closeDialog();
+            showDialog(
+              "Narrador",
+              "Sus tropas, bien equipadas gracias a los recursos disponibles, logran recuperar la fortificación con éxito. La posición estratégica es recuperada y los suministros capturados fortalecen su feudo.",
+              [
+                {
+                  text: "Continuar",
+                  class: "neutral",
+                  action: () => {
+                    closeDialog();
+                    npcAldeano.style.display = "none";
+                    stopNPCAnimation();
+                  },
+                },
+              ]
+            );
+          } else {
+            // Fallo: No hay suficiente oro para equipar bien a las tropas
+            modifyLoyalty(-8); // Reducido de -10 a -8
+            modifySupplies(-5); // Reducido de -10 a -5
+            gameState.missions.borderConflictQuest.completed = true;
+            // Subir el nivel de feudo a 4 (aunque haya fallado)
+            gameState.fiefLevel = 4;
+            updateStats();
+            // Cambiar a castle_theme cuando se completa la misión
+            updateGameMusic();
+            closeDialog();
+            showDialog(
+              "Narrador",
+              "Las tropas parten sin el equipo adecuado. La falta de oro impide armarles correctamente, aumentando el riesgo. La batalla es costosa y aunque recuperan la fortificación, las pérdidas son significativas. Su feudo crece, pero a un alto costo.",
+              [
+                {
+                  text: "Continuar",
+                  class: "neutral",
+                  action: () => {
+                    closeDialog();
+                    npcAldeano.style.display = "none";
+                    stopNPCAnimation();
+                  },
+                },
+              ]
+            );
+          }
+        },
+      },
+      {
+        text: "Negociar (Alto Costo) (-40 Oro)",
+        class: "secondary",
+        action: () => {
+          if (gameState.gold >= 40) {
+            modifyGold(-40);
+            modifyLoyalty(12); // Aumentado de 10 a 12
+            modifySupplies(18); // Aumentado de 15 a 18
+            gameState.missions.borderConflictQuest.completed = true;
+            // Subir el nivel de feudo a 4
+            gameState.fiefLevel = 4;
+            updateStats();
+            // Cambiar a castle_theme cuando se completa la misión
+            updateGameMusic();
+            closeDialog();
+            showDialog(
+              "Narrador",
+              "La negociación es exitosa. Aunque el costo en oro es alto, evita derramamiento de sangre y la fortificación es recuperada pacíficamente. El pueblo aprecia su diplomacia y la lealtad crece junto con los recursos obtenidos.",
+              [
+                {
+                  text: "Continuar",
+                  class: "neutral",
+                  action: () => {
+                    closeDialog();
+                    npcAldeano.style.display = "none";
+                    stopNPCAnimation();
+                  },
+                },
+              ]
+            );
+          } else {
+            closeDialog();
+            showDialog(
+              "Narrador",
+              "No tienes suficiente oro para negociar. Necesitas al menos 40 de oro para esta opción.",
+              [
+                {
+                  text: "Volver",
+                  class: "neutral",
+                  action: () => {
+                    closeDialog();
+                    showBorderConflictDecision();
+                  },
+                },
+              ]
+            );
+          }
+        },
+      },
+    ]
+  );
+}
+
+// Función para ofrecer la misión final (evaluación del Consejero)
+function offerFinalQuest() {
+  gameState.missions.finalQuest.offered = true;
+
+  showDialog(
+    "Aldeano",
+    "Mi señor/a, ha llegado el momento crucial. Como su Consejero, debo evaluar el estado actual de nuestro feudo antes del invierno. ¿Desea que proceda con la evaluación final?",
+    [
+      {
+        text: "Aceptar Evaluación",
+        class: "primary",
+        action: () => {
+          gameState.missions.finalQuest.accepted = true;
+          // Cambiar a minor_theme cuando se acepta la misión
+          updateGameMusic();
+          closeDialog();
+          // Mostrar inmediatamente la evaluación
+          setTimeout(() => {
+            showFinalEvaluation();
+          }, 500);
+        },
+      },
+      {
+        text: "Todavía no",
+        class: "secondary",
+        action: () => {
+          closeDialog();
+          // No marcar como completada, permite volver más tarde
+        },
+      },
+    ]
+  );
+}
+
+// Función para mostrar la evaluación final y determinar victoria/derrota
+function showFinalEvaluation() {
+  // Evaluar condiciones de victoria (ajustadas para ser más alcanzables)
+  const hasVictory = 
+    gameState.loyalty >= 35 && // Reducido para ser más alcanzable
+    gameState.gold >= 50 && // Reducido para ser más alcanzable
+    gameState.supplies >= 20; // Reducido para ser más alcanzable
+
+  gameState.missions.finalQuest.completed = true;
+  // Cambiar a castle_theme cuando se completa la misión
+  updateGameMusic();
+
+  if (hasVictory) {
+    // VICTORIA
+    showDialog(
+      "Aldeano",
+      "Permítame evaluar los recursos del feudo, mi señor/a...",
+      [
+        {
+          text: "Continuar",
+          class: "neutral",
+          action: () => {
+            closeDialog();
+            setTimeout(() => {
+              showDialog(
+                "Narrador",
+                "Su Casa ha asegurado la paz y la supervivencia. El Invierno llegó, pero el feudo está listo. La gente lo recordará como un gran líder.",
+                [
+                  {
+                    text: "Continuar",
+                    class: "primary",
+                    action: () => {
+                      closeDialog();
+                      // Después de mostrar la victoria, mostrar créditos
+                      setTimeout(() => {
+                        showCredits();
+                      }, 1000);
+                    },
+                  },
+                ]
+              );
+            }, 500);
+          },
+        },
+      ]
+    );
+  } else {
+    // DERROTA
+    showDialog(
+      "Aldeano",
+      "Permítame evaluar los recursos del feudo, mi señor/a...",
+      [
+        {
+          text: "Continuar",
+          class: "neutral",
+          action: () => {
+            closeDialog();
+            setTimeout(() => {
+              showDialog(
+                "Narrador",
+                "El frío es implacable. La falta de recursos, el descontento popular, o la bancarrota condenan a su feudo. Un invierno largo espera. Su reinado termina en la tragedia.",
+                [
+                  {
+                    text: "Continuar",
+                    class: "secondary",
+                    action: () => {
+                      closeDialog();
+                      // Después de mostrar la derrota, mostrar créditos
+                      setTimeout(() => {
+                        showCredits();
+                      }, 1000);
+                    },
+                  },
+                ]
+              );
+            }, 500);
+          },
+        },
+      ]
+    );
+  }
+}
+
+// Función para mostrar los créditos (desde el juego)
 function showCredits() {
   gameState.creditsShown = true;
   creditsScreen.style.display = "flex";
 
-  // Detener música del juego y iniciar música de créditos
-  fadeOutAudio(gameTheme, 500, () => {
+  // Detener música del juego (puede ser castle_theme o minor_theme) y iniciar música de créditos
+  // Verificar cuál está sonando
+  const castlePlaying = !castleTheme.paused && castleTheme.volume > 0;
+  const minorPlaying = !minorTheme.paused && minorTheme.volume > 0;
+  
+  const fadeOutCurrentTheme = () => {
     // Saltar los primeros 5 segundos de silencio
     creditsTheme.currentTime = 6;
     fadeInAudio(creditsTheme, 2000);
-  });
+  };
+  
+  if (castlePlaying) {
+    fadeOutAudio(castleTheme, 500, fadeOutCurrentTheme);
+  } else if (minorPlaying) {
+    fadeOutAudio(minorTheme, 500, fadeOutCurrentTheme);
+  } else {
+    // Si ninguna está sonando, iniciar créditos directamente
+    fadeOutCurrentTheme();
+  }
 
   // Event listener para volver al menú al presionar cualquier tecla
   const handleKeyPress = (e) => {
@@ -449,28 +1191,46 @@ function returnToMenu() {
   // Ocultar pantalla de juego
   gameScreen.style.display = "none";
 
-  // Detener música del juego si está sonando
-  fadeOutAudio(gameTheme, 500);
+  // Detener música del juego si está sonando (ambas posibles)
+  fadeOutAudio(castleTheme, 500);
+  fadeOutAudio(minorTheme, 500);
 
-  // Mostrar menú con animación
-  menuScreen.style.display = "flex";
-  menuScreen.style.opacity = "0";
-  menuScreen.style.transition = "opacity 0.5s ease";
+  // Mostrar menú principal con animación
+  mainMenuScreen.style.display = "flex";
+  mainMenuScreen.style.opacity = "0";
+  mainMenuScreen.style.transition = "opacity 0.5s ease";
 
   setTimeout(() => {
-    menuScreen.style.opacity = "1";
+    mainMenuScreen.style.opacity = "1";
   }, 100);
 
   // Reiniciar el estado del juego
   gameState = {
-    gold: 50,
-    loyalty: 20,
+    gold: 100, // Aumentado para balance mejor (necesario para alcanzar victoria)
+    loyalty: 30, // Aumentado para balance mejor
+    supplies: 5, // Aumentado de 0 a 5 para balance mejor
+    fiefLevel: 1,
     missions: {
       banditsQuest: {
         offered: false,
         accepted: false,
         completed: false,
         shouldShowCredits: false,
+      },
+      plagueQuest: {
+        offered: false,
+        accepted: false,
+        completed: false,
+      },
+      borderConflictQuest: {
+        offered: false,
+        accepted: false,
+        completed: false,
+      },
+      finalQuest: {
+        offered: false,
+        accepted: false,
+        completed: false,
       },
     },
     creditsShown: false,
@@ -489,8 +1249,212 @@ function returnToMenu() {
   // Actualizar stats
   updateStats();
 
+  // Guardar estado (reiniciado)
+  saveGameState();
+
   console.log("Volviendo al menú principal");
 }
+
+// Función para mostrar menú de selección de casas
+function showHouseSelection() {
+  mainMenuScreen.style.opacity = "0";
+  mainMenuScreen.style.transition = "opacity 0.5s ease";
+  
+  setTimeout(() => {
+    mainMenuScreen.style.display = "none";
+    menuScreen.style.display = "flex";
+    menuScreen.style.opacity = "0";
+    menuScreen.style.transition = "opacity 0.5s ease";
+    
+    setTimeout(() => {
+      menuScreen.style.opacity = "1";
+    }, 100);
+  }, 500);
+}
+
+// Función para reanudar juego guardado
+function resumeGame() {
+  if (!loadGameState()) {
+    alert("No hay partida guardada");
+    return;
+  }
+  
+  // Ocultar menú principal
+  mainMenuScreen.style.opacity = "0";
+  mainMenuScreen.style.transition = "opacity 0.5s ease";
+  
+  setTimeout(() => {
+    mainMenuScreen.style.display = "none";
+    
+    // Restaurar estado del juego
+    const savedState = JSON.parse(localStorage.getItem("gameState"));
+    currentScene = savedState.currentScene || "castle";
+    characterX = savedState.characterX || window.innerWidth / 2;
+    characterY = savedState.characterY || window.innerHeight - 170;
+    selectedHouse = savedState.selectedHouse || "stark";
+    
+    // Configurar personaje según la casa guardada
+    setCharacterByHouse(selectedHouse);
+    
+    // Cambiar escenario
+    changeScene(currentScene);
+    
+    // Actualizar posición del personaje
+    updateCharacterPosition();
+    
+    // Actualizar stats
+    updateStats();
+    
+    // Mostrar pantalla de juego
+    gameScreen.style.display = "block";
+    
+    // Detener música del menú y reproducir música del juego según el estado de la misión
+    fadeOutAudio(menuTheme, 500, () => {
+      // Verificar si hay misión activa y reproducir la música correspondiente
+      updateGameMusic();
+    });
+  }, 500);
+}
+
+// Función para mostrar configuración
+function showConfig() {
+  mainMenuScreen.style.opacity = "0";
+  mainMenuScreen.style.transition = "opacity 0.5s ease";
+  
+  setTimeout(() => {
+    mainMenuScreen.style.display = "none";
+    configScreen.style.display = "flex";
+    configScreen.style.opacity = "0";
+    configScreen.style.transition = "opacity 0.5s ease";
+    
+    setTimeout(() => {
+      configScreen.style.opacity = "1";
+    }, 100);
+  }, 500);
+}
+
+// Función para volver al menú principal desde configuración
+function backToMainMenu() {
+  configScreen.style.opacity = "0";
+  configScreen.style.transition = "opacity 0.5s ease";
+  
+  setTimeout(() => {
+    configScreen.style.display = "none";
+    mainMenuScreen.style.display = "flex";
+    mainMenuScreen.style.opacity = "0";
+    mainMenuScreen.style.transition = "opacity 0.5s ease";
+    
+    setTimeout(() => {
+      mainMenuScreen.style.opacity = "1";
+    }, 100);
+  }, 500);
+}
+
+// Función para mostrar créditos
+function showCreditsFromMenu() {
+  mainMenuScreen.style.opacity = "0";
+  mainMenuScreen.style.transition = "opacity 0.5s ease";
+  
+  setTimeout(() => {
+    mainMenuScreen.style.display = "none";
+    creditsScreen.style.display = "flex";
+    
+    // Detener música del menú y reproducir música de créditos
+    fadeOutAudio(menuTheme, 500, () => {
+      creditsTheme.currentTime = 6;
+      fadeInAudio(creditsTheme, 2000);
+    });
+    
+    // Event listener para volver al menú al presionar cualquier tecla
+    const handleKeyPress = (e) => {
+      backFromCredits();
+      document.removeEventListener("keydown", handleKeyPress);
+    };
+    
+    document.addEventListener("keydown", handleKeyPress);
+  }, 500);
+}
+
+// Función para volver del menú de créditos
+function backFromCredits() {
+  fadeOutAudio(creditsTheme, 500, () => {
+    fadeInAudio(menuTheme, 2000);
+  });
+  
+  creditsScreen.style.display = "none";
+  mainMenuScreen.style.display = "flex";
+  mainMenuScreen.style.opacity = "0";
+  mainMenuScreen.style.transition = "opacity 0.5s ease";
+  
+  setTimeout(() => {
+    mainMenuScreen.style.opacity = "1";
+  }, 100);
+}
+
+// Event listeners para botones del menú principal
+btnStart.addEventListener("click", showHouseSelection);
+btnResume.addEventListener("click", resumeGame);
+btnConfig.addEventListener("click", showConfig);
+btnCredits.addEventListener("click", showCreditsFromMenu);
+btnExit.addEventListener("click", () => {
+  if (confirm("¿Estás seguro de que quieres salir?")) {
+    window.close();
+  }
+});
+
+btnBack.addEventListener("click", backToMainMenu);
+
+// Event listener para teclado en menú principal (1-5)
+document.addEventListener("keydown", (e) => {
+  // Solo procesar si el menú principal está visible
+  const mainMenuVisible = window.getComputedStyle(mainMenuScreen).display !== "none" && 
+                          mainMenuScreen.offsetParent !== null;
+  
+  if (mainMenuVisible) {
+    if (e.key === "1") {
+      showHouseSelection();
+    } else if (e.key === "2" && hasSaveGame()) {
+      resumeGame();
+    } else if (e.key === "3") {
+      showConfig();
+    } else if (e.key === "4") {
+      showCreditsFromMenu();
+    } else if (e.key === "5") {
+      if (confirm("¿Estás seguro de que quieres salir?")) {
+        // Intentar cerrar ventana, si no funciona (pestaña), mostrar mensaje
+        window.close();
+        // Si es una pestaña, no se puede cerrar, pero al menos se intentó
+      }
+    }
+  }
+});
+
+// Event listener para toggle de sonido
+toggleSound.addEventListener("click", () => {
+  config.soundEnabled = !config.soundEnabled;
+  updateConfigUI();
+  saveConfig();
+});
+
+// Event listener para slider de zoom
+zoomSlider.addEventListener("input", (e) => {
+  config.zoomLevel = parseInt(e.target.value);
+  zoomValueDisplay.textContent = config.zoomLevel + "%";
+  
+  // Aplicar zoom (compatible con diferentes navegadores)
+  const zoomValue = config.zoomLevel / 100;
+  if (typeof document.body.style.zoom !== "undefined") {
+    document.body.style.zoom = config.zoomLevel + "%";
+  } else {
+    // Fallback usando transform para navegadores que no soportan zoom
+    document.body.style.transform = `scale(${zoomValue})`;
+    document.body.style.transformOrigin = "top left";
+    document.body.style.width = `${100 / zoomValue}%`;
+    document.body.style.height = `${100 / zoomValue}%`;
+  }
+  
+  saveConfig();
+});
 
 // Función para mostrar la decisión en el bosque
 function showWoodsDecision() {
@@ -504,9 +1468,10 @@ function showWoodsDecision() {
         action: () => {
           if (gameState.gold >= 15) {
             modifyGold(-15);
-            modifyLoyalty(10);
+            modifyLoyalty(12); // Aumentado de 10 a 12
             gameState.missions.banditsQuest.completed = true;
-            gameState.missions.banditsQuest.shouldShowCredits = true;
+            // Cambiar a castle_theme cuando se completa la misión
+            updateGameMusic();
             closeDialog();
             showDialog(
               "Narrador",
@@ -544,7 +1509,8 @@ function showWoodsDecision() {
         action: () => {
           modifyLoyalty(-10);
           gameState.missions.banditsQuest.completed = true;
-          gameState.missions.banditsQuest.shouldShowCredits = true;
+          // Cambiar a castle_theme cuando se completa la misión
+          updateGameMusic();
           closeDialog();
           showDialog(
             "Narrador",
@@ -593,23 +1559,47 @@ function moveCharacter() {
   // Detectar si sale por abajo → avanzar de escenario y aparecer arriba
   if (characterY > window.innerHeight - 20) {
     if (currentScene === "castle") {
+      changeScene("castle_to_city");
+      characterY = statsBarHeight + spriteHeight + 10;
+    } else if (currentScene === "castle_to_city") {
       changeScene("city");
       characterY = statsBarHeight + spriteHeight + 10;
     } else if (currentScene === "city") {
+      changeScene("city_to_woods");
+      characterY = statsBarHeight + spriteHeight + 10;
+    } else if (currentScene === "city_to_woods") {
       changeScene("woods");
       characterY = statsBarHeight + spriteHeight + 10;
+    } else if (currentScene === "woods") {
+      changeScene("woods_to_ruins");
+      characterY = statsBarHeight + spriteHeight + 10;
+    } else if (currentScene === "woods_to_ruins") {
+      changeScene("ruins");
+      characterY = statsBarHeight + spriteHeight + 10;
     } else {
-      // Si está en woods, limitar normalmente
+      // Si está en ruins, limitar normalmente
       characterY = window.innerHeight - 20;
     }
   }
 
   // Detectar si sale por arriba → retroceder de escenario y aparecer abajo
   if (characterY - spriteHeight < statsBarHeight) {
-    if (currentScene === "woods") {
+    if (currentScene === "ruins") {
+      changeScene("woods_to_ruins");
+      characterY = window.innerHeight - 40;
+    } else if (currentScene === "woods_to_ruins") {
+      changeScene("woods");
+      characterY = window.innerHeight - 40;
+    } else if (currentScene === "woods") {
+      changeScene("city_to_woods");
+      characterY = window.innerHeight - 40;
+    } else if (currentScene === "city_to_woods") {
       changeScene("city");
       characterY = window.innerHeight - 40;
     } else if (currentScene === "city") {
+      changeScene("castle_to_city");
+      characterY = window.innerHeight - 40;
+    } else if (currentScene === "castle_to_city") {
       changeScene("castle");
       characterY = window.innerHeight - 40;
     } else {
@@ -633,6 +1623,10 @@ function moveCharacter() {
   // Actualizar posición si hubo movimiento
   if (moved) {
     updateCharacterPosition();
+    // Guardar estado periódicamente durante el juego
+    if (Math.random() < 0.01) { // Guardar aproximadamente cada 100 frames
+      saveGameState();
+    }
   }
 
   // Continuar el loop
