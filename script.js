@@ -169,6 +169,7 @@ let walkAnimationFrame = 0;
 let idleImage = "img/eddard.png"; // Imagen cuando está quieto (por defecto Stark)
 let walkImages = ["img/eddard_pie1.png", "img/eddard_pie2.png"]; // Imágenes para caminar (por defecto Stark)
 let animationInterval = null;
+let facingLeft = false; // Variable para rastrear si el personaje mira a la izquierda
 
 // Variable para almacenar la casa seleccionada
 let selectedHouse = "stark"; // Por defecto Stark
@@ -434,7 +435,12 @@ function stopWalkingAnimation() {
 function updateCharacterPosition() {
   characterSprite.style.left = characterX + "px";
   characterSprite.style.bottom = window.innerHeight - characterY + "px";
-  characterSprite.style.transform = "translateX(-50%)";
+  // Aplicar reflejo horizontal si mira a la izquierda
+  if (facingLeft) {
+    characterSprite.style.transform = "translateX(-50%) scaleX(-1)";
+  } else {
+    characterSprite.style.transform = "translateX(-50%)";
+  }
 }
 
 // Función para actualizar el minimapa
@@ -1544,10 +1550,12 @@ function moveCharacter() {
   }
   if (keys.ArrowLeft) {
     characterX -= movementSpeed;
+    facingLeft = true; // Mirar a la izquierda
     moved = true;
   }
   if (keys.ArrowRight) {
     characterX += movementSpeed;
+    facingLeft = false; // Mirar a la derecha
     moved = true;
   }
 
