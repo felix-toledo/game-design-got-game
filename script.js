@@ -15,6 +15,7 @@ const goldValue = document.getElementById("gold-value");
 const loyaltyValue = document.getElementById("loyalty-value");
 const suppliesValue = document.getElementById("supplies-value");
 const fiefLevelValue = document.getElementById("fief-level-value");
+const xpValue = document.getElementById("xp-value");
 const creditsScreen = document.getElementById("credits-screen");
 const menuTheme = document.getElementById("menu-theme");
 const castleTheme = document.getElementById("castle-theme");
@@ -45,6 +46,7 @@ let gameState = {
   gold: 100, // Aumentado para balance mejor (necesario para alcanzar victoria)
   loyalty: 30, // Aumentado para balance mejor
   supplies: 5, // Aumentado de 0 a 5 para balance mejor
+  xp: 0, // Experiencia del jugador
   fiefLevel: 1,
   missions: {
     banditsQuest: {
@@ -491,11 +493,27 @@ function changeScene(newScene) {
   console.log(`Escenario cambiado a: ${newScene}`);
 }
 
+// Función para calcular el nivel del feudo basado en XP
+function calculateFiefLevel() {
+  if (gameState.xp < 50) {
+    return 1;
+  } else if (gameState.xp < 100) {
+    return 2;
+  } else if (gameState.xp < 150) {
+    return 3;
+  } else {
+    return 4;
+  }
+}
+
 // Función para actualizar los valores de oro y lealtad
 function updateStats() {
   goldValue.textContent = gameState.gold;
   loyaltyValue.textContent = gameState.loyalty;
   suppliesValue.textContent = gameState.supplies;
+  xpValue.textContent = gameState.xp;
+  // Calcular el nivel del feudo basado en XP
+  gameState.fiefLevel = calculateFiefLevel();
   fiefLevelValue.textContent = gameState.fiefLevel;
 }
 
@@ -518,10 +536,17 @@ function modifySupplies(amount) {
   updateStats();
 }
 
-// Función para modificar nivel de feudo
+// Función para modificar XP
+function modifyXP(amount) {
+  gameState.xp += amount;
+  if (gameState.xp < 0) gameState.xp = 0; // No permitir negativos
+  updateStats();
+}
+
+// Función para modificar nivel de feudo (deprecated - ahora se calcula automáticamente)
 function modifyFiefLevel(amount) {
-  gameState.fiefLevel += amount;
-  if (gameState.fiefLevel < 1) gameState.fiefLevel = 1; // Mínimo nivel 1
+  // Esta función ya no se usa, el nivel se calcula automáticamente desde XP
+  // Se mantiene por compatibilidad pero no hace nada
   updateStats();
 }
 
@@ -785,9 +810,9 @@ function showPlagueDecision() {
             modifyGold(-20);
             modifyLoyalty(18); // Aumentado de 15 a 18
             modifySupplies(12); // Aumentado de 10 a 12
+            modifyXP(30); // XP por buena decisión
             gameState.missions.plagueQuest.completed = true;
-            // Subir el nivel de feudo a 3
-            gameState.fiefLevel = 3;
+            // El nivel del feudo se calcula automáticamente desde XP
             updateStats();
             // Cambiar a castle_theme cuando se completa la misión
             updateGameMusic();
@@ -832,16 +857,16 @@ function showPlagueDecision() {
         action: () => {
           modifyLoyalty(-12); // Reducido de -15 a -12
           modifySupplies(-3); // Reducido de -5 a -3
+          // No otorgar XP por mala decisión
           gameState.missions.plagueQuest.completed = true;
-          // Subir el nivel de feudo a 3 (aunque sea la opción negativa)
-          gameState.fiefLevel = 3;
+          // El nivel del feudo se calcula automáticamente desde XP
           updateStats();
           // Cambiar a castle_theme cuando se completa la misión
           updateGameMusic();
           closeDialog();
           showDialog(
             "Narrador",
-            "La enfermedad se expande. La lealtad cae mientras el pueblo sufre las consecuencias de la decisión. A pesar de todo, el feudo crece, pero a un costo alto.",
+            "La enfermedad se expande. La lealtad cae mientras el pueblo sufre las consecuencias de la decisión. El feudo no progresa como debería.",
             [
               {
                 text: "Continuar",
@@ -929,9 +954,9 @@ function showBorderConflictDecision() {
           if (gameState.gold >= 40) {
             // Éxito: Las tropas están bien equipadas
             modifySupplies(25); // Aumentado de 20 a 25
+            modifyXP(35); // XP por buena decisión exitosa
             gameState.missions.borderConflictQuest.completed = true;
-            // Subir el nivel de feudo a 4
-            gameState.fiefLevel = 4;
+            // El nivel del feudo se calcula automáticamente desde XP
             updateStats();
             // Cambiar a castle_theme cuando se completa la misión
             updateGameMusic();
@@ -955,16 +980,16 @@ function showBorderConflictDecision() {
             // Fallo: No hay suficiente oro para equipar bien a las tropas
             modifyLoyalty(-8); // Reducido de -10 a -8
             modifySupplies(-5); // Reducido de -10 a -5
+            // No otorgar XP por decisión fallida
             gameState.missions.borderConflictQuest.completed = true;
-            // Subir el nivel de feudo a 4 (aunque haya fallado)
-            gameState.fiefLevel = 4;
+            // El nivel del feudo se calcula automáticamente desde XP
             updateStats();
             // Cambiar a castle_theme cuando se completa la misión
             updateGameMusic();
             closeDialog();
             showDialog(
               "Narrador",
-              "Las tropas parten sin el equipo adecuado. La falta de oro impide armarles correctamente, aumentando el riesgo. La batalla es costosa y aunque recuperan la fortificación, las pérdidas son significativas. Su feudo crece, pero a un alto costo.",
+              "Las tropas parten sin el equipo adecuado. La falta de oro impide armarles correctamente, aumentando el riesgo. La batalla es costosa y aunque recuperan la fortificación, las pérdidas son significativas. El feudo no progresa como debería.",
               [
                 {
                   text: "Continuar",
@@ -988,9 +1013,9 @@ function showBorderConflictDecision() {
             modifyGold(-40);
             modifyLoyalty(12); // Aumentado de 10 a 12
             modifySupplies(18); // Aumentado de 15 a 18
+            modifyXP(40); // XP por buena decisión diplomática
             gameState.missions.borderConflictQuest.completed = true;
-            // Subir el nivel de feudo a 4
-            gameState.fiefLevel = 4;
+            // El nivel del feudo se calcula automáticamente desde XP
             updateStats();
             // Cambiar a castle_theme cuando se completa la misión
             updateGameMusic();
@@ -1215,6 +1240,7 @@ function returnToMenu() {
     gold: 100, // Aumentado para balance mejor (necesario para alcanzar victoria)
     loyalty: 30, // Aumentado para balance mejor
     supplies: 5, // Aumentado de 0 a 5 para balance mejor
+    xp: 0, // Experiencia del jugador
     fiefLevel: 1,
     missions: {
       banditsQuest: {
@@ -1475,6 +1501,7 @@ function showWoodsDecision() {
           if (gameState.gold >= 15) {
             modifyGold(-15);
             modifyLoyalty(12); // Aumentado de 10 a 12
+            modifyXP(25); // XP por buena decisión
             gameState.missions.banditsQuest.completed = true;
             // Cambiar a castle_theme cuando se completa la misión
             updateGameMusic();
@@ -1514,6 +1541,7 @@ function showWoodsDecision() {
         class: "secondary",
         action: () => {
           modifyLoyalty(-10);
+          // No otorgar XP por mala decisión
           gameState.missions.banditsQuest.completed = true;
           // Cambiar a castle_theme cuando se completa la misión
           updateGameMusic();
